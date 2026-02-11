@@ -28,7 +28,7 @@ export function KPIGrid({ kpis }: KPIGridProps) {
     },
     {
       label: 'Max Drawdown',
-      value: `-${kpis.maxDrawdown.toFixed(2)}%`,
+      value: kpis.maxDrawdown > 0 ? `-${kpis.maxDrawdown.toFixed(2)}%` : `${kpis.maxDrawdown.toFixed(2)}%`,
       icon: TrendingDown,
       color: 'text-[var(--negative)]',
     },
@@ -58,7 +58,7 @@ export function KPIGrid({ kpis }: KPIGridProps) {
     },
     {
       label: 'Best / Worst Day',
-      value: `${kpis.bestDay >= 0 ? '+' : ''}${kpis.bestDay.toFixed(2)}% / ${kpis.worstDay.toFixed(2)}%`,
+      value: `${kpis.bestDay >= 0 ? '+' : ''}${kpis.bestDay.toFixed(2)}% / ${kpis.worstDay >= 0 ? '+' : ''}${kpis.worstDay.toFixed(2)}%`,
       icon: TrendingUp,
       color: 'text-[var(--secondary-text)]',
     },

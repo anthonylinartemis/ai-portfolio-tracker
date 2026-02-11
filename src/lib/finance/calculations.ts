@@ -35,29 +35,36 @@ export function calculateKPIs(
   // Mean daily return
   const meanDailyReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
 
-  // Standard deviation of daily returns
-  const variance =
-    dailyReturns.reduce((sum, r) => sum + Math.pow(r - meanDailyReturn, 2), 0) /
-    dailyReturns.length;
-  const stdDev = Math.sqrt(variance);
+  // Standard deviation of daily returns (need 2+ observations)
+  let stdDev = 0;
+  let volatility = 0;
+  let sharpeRatio = 0;
+  let sortinoRatio = 0;
 
-  // Volatility (annualized)
-  const volatility = stdDev * Math.sqrt(TRADING_DAYS_PER_YEAR) * 100;
+  if (dailyReturns.length >= 2) {
+    const variance =
+      dailyReturns.reduce((sum, r) => sum + Math.pow(r - meanDailyReturn, 2), 0) /
+      dailyReturns.length;
+    stdDev = Math.sqrt(variance);
 
-  // Sharpe Ratio
-  const sharpeRatio = stdDev > 0 ? ((meanDailyReturn - DAILY_RF) / stdDev) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
+    // Volatility (annualized)
+    volatility = stdDev * Math.sqrt(TRADING_DAYS_PER_YEAR) * 100;
 
-  // Sortino Ratio (only downside deviation)
-  const negativeReturns = dailyReturns.filter((r) => r < 0);
-  const downsideVariance =
-    negativeReturns.length > 0
-      ? negativeReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / dailyReturns.length
-      : 0;
-  const downsideDev = Math.sqrt(downsideVariance);
-  const sortinoRatio =
-    downsideDev > 0
-      ? ((meanDailyReturn - DAILY_RF) / downsideDev) * Math.sqrt(TRADING_DAYS_PER_YEAR)
-      : 0;
+    // Sharpe Ratio
+    sharpeRatio = stdDev > 0 ? ((meanDailyReturn - DAILY_RF) / stdDev) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
+
+    // Sortino Ratio (only downside deviation)
+    const negativeReturns = dailyReturns.filter((r) => r < 0);
+    const downsideVariance =
+      negativeReturns.length > 0
+        ? negativeReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) / dailyReturns.length
+        : 0;
+    const downsideDev = Math.sqrt(downsideVariance);
+    sortinoRatio =
+      downsideDev > 0
+        ? ((meanDailyReturn - DAILY_RF) / downsideDev) * Math.sqrt(TRADING_DAYS_PER_YEAR)
+        : 0;
+  }
 
   // Max Drawdown
   let peak = snapshots[0].totalValue;
@@ -73,7 +80,7 @@ export function calculateKPIs(
   let alpha = 0;
   let beta = 1;
 
-  if (spySnapshots && spySnapshots.length > 0) {
+  if (spySnapshots && spySnapshots.length > 0 && tradingDays >= 21) {
     const spyReturns = spySnapshots
       .map((s) => s.dailyReturn)
       .filter((r): r is number => r != null);

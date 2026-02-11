@@ -61,7 +61,7 @@ export function PerformanceTable() {
     { key: 'annualizedReturn', label: 'Ann. Return', format: formatPercent },
     { key: 'sharpeRatio', label: 'Sharpe', format: formatRatio },
     { key: 'sortinoRatio', label: 'Sortino', format: formatRatio },
-    { key: 'maxDrawdown', label: 'Max Drawdown', format: (v: number) => `-${v.toFixed(2)}%` },
+    { key: 'maxDrawdown', label: 'Max Drawdown', format: (v: number) => v > 0 ? `-${v.toFixed(2)}%` : `${v.toFixed(2)}%` },
     { key: 'volatility', label: 'Volatility', format: formatPercent },
     { key: 'alpha', label: 'Alpha', format: formatPercent },
     { key: 'beta', label: 'Beta', format: formatRatio },
