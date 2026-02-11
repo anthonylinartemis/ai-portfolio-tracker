@@ -25,12 +25,12 @@ export function calculateKPIs(
   // Total Return
   const totalReturn = ((currentValue - initialCapital) / initialCapital) * 100;
 
-  // Annualized Return
+  // Annualized Return (only meaningful with 21+ trading days)
   const tradingDays = dailyReturns.length;
   const annualizedReturn =
-    tradingDays > 0
+    tradingDays >= 21
       ? (Math.pow(currentValue / initialCapital, TRADING_DAYS_PER_YEAR / tradingDays) - 1) * 100
-      : 0;
+      : totalReturn;
 
   // Mean daily return
   const meanDailyReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
