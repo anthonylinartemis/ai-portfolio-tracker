@@ -1,23 +1,28 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { AgentCard } from '@/components/dashboard/AgentCard';
 import { PerformanceChart } from '@/components/charts/PerformanceChart';
-import { PerformanceTable } from '@/components/dashboard/PerformanceTable';
+import { ComparisonBar } from '@/components/charts/ComparisonBar';
 import { PortfolioBreakdown } from '@/components/dashboard/PortfolioBreakdown';
 import { Spinner } from '@/components/ui/Spinner';
-import { RefreshCw } from 'lucide-react';
-import type { AgentWithPerformance, Timeframe } from '@/types';
+import type { AgentWithPerformance, KPIs, Timeframe } from '@/types';
 
-export default function DashboardPage() {
+interface AgentKPIs {
+  agentId: string;
+  name: string;
+  color: string;
+  kpis: KPIs;
+}
+
+export default function ComparePage() {
   const [agents, setAgents] = useState<AgentWithPerformance[]>([]);
+  const [agentKPIs, setAgentKPIs] = useState<AgentKPIs[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [timeframe, setTimeframe] = useState<Timeframe>('ALL');
   const [chartSeries, setChartSeries] = useState<{ label: string; color: string; data: { date: string; value: number }[] }[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
 
-  const fetchAgents = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       const res = await fetch('/api/agents');
       const data = await res.json();
@@ -29,22 +34,33 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const fetchChartData = useCallback(async (agentList: AgentWithPerformance[], tf: Timeframe) => {
+  const fetchChartAndKPIs = useCallback(async (agentList: AgentWithPerformance[], tf: Timeframe) => {
     if (agentList.length === 0) return;
     setChartLoading(true);
+
     try {
       const series: { label: string; color: string; data: { date: string; value: number }[] }[] = [];
       let spyData: { date: string; value: number }[] = [];
+      const kpis: AgentKPIs[] = [];
 
       for (const agent of agentList) {
         const res = await fetch(`/api/portfolio/${agent.id}/performance?timeframe=${tf}`);
         const perf = await res.json();
+
         series.push({
           label: agent.name,
           color: agent.color,
           data: perf.snapshots || [],
         });
-        if (perf.spySnapshots && perf.spySnapshots.length > 0) {
+
+        kpis.push({
+          agentId: agent.id,
+          name: agent.name,
+          color: agent.color,
+          kpis: perf.kpis,
+        });
+
+        if (perf.spySnapshots?.length > 0) {
           spyData = perf.spySnapshots;
         }
       }
@@ -58,34 +74,23 @@ export default function DashboardPage() {
       }
 
       setChartSeries(series);
+      setAgentKPIs(kpis);
     } catch (error) {
-      console.error('Failed to fetch chart data:', error);
+      console.error('Failed to fetch performance:', error);
     } finally {
       setChartLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchAgents();
-  }, [fetchAgents]);
+    fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
     if (agents.length > 0) {
-      fetchChartData(agents, timeframe);
+      fetchChartAndKPIs(agents, timeframe);
     }
-  }, [agents, timeframe, fetchChartData]);
-
-  async function handleSync() {
-    setSyncing(true);
-    try {
-      await fetch('/api/prices/sync', { method: 'POST' });
-      await fetchAgents();
-    } catch (error) {
-      console.error('Sync failed:', error);
-    } finally {
-      setSyncing(false);
-    }
-  }
+  }, [agents, timeframe, fetchChartAndKPIs]);
 
   if (loading) {
     return (
@@ -95,46 +100,49 @@ export default function DashboardPage() {
     );
   }
 
+  // Build comparison bar data
+  const comparisonMetrics = [
+    { key: 'totalReturn', label: 'Total Return %' },
+    { key: 'sharpeRatio', label: 'Sharpe' },
+    { key: 'sortinoRatio', label: 'Sortino' },
+    { key: 'maxDrawdown', label: 'Max DD %' },
+    { key: 'alpha', label: 'Alpha %' },
+  ];
+
+  const barData = comparisonMetrics.map((metric) => ({
+    metric: metric.label,
+    agents: agentKPIs.map((a) => ({
+      agentId: a.agentId,
+      name: a.name,
+      color: a.color,
+      value: a.kpis[metric.key as keyof KPIs] as number,
+    })),
+  }));
+
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">AI Portfolio Tracker</h1>
-          <p className="text-[var(--secondary-text)] text-sm mt-1">
-            Tracking {agents.length} AI agent portfolios vs SPY benchmark
-          </p>
-        </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--card-bg)] border border-[var(--border)] rounded-lg text-sm font-medium hover:bg-[var(--background)] transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Syncing...' : 'Update Prices'}
-        </button>
+      <div>
+        <h1 className="text-2xl font-bold">Compare Portfolios</h1>
+        <p className="text-[var(--secondary-text)] text-sm mt-1">
+          Side-by-side comparison of all AI agent portfolios
+        </p>
       </div>
 
-      {/* Agent Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {agents.map((agent) => (
-          <AgentCard key={agent.id} agent={agent} />
-        ))}
-      </div>
-
-      {/* Performance Chart */}
+      {/* Overlay Line Chart */}
       <PerformanceChart
         series={chartSeries}
         loading={chartLoading}
-        title="Portfolio Performance"
+        title="All Portfolios vs SPY"
         timeframe={timeframe}
         onTimeframeChange={setTimeframe}
       />
 
-      {/* KPI Comparison Table */}
-      <PerformanceTable />
+      {/* Comparison Bars */}
+      {barData.length > 0 && (
+        <ComparisonBar data={barData} title="KPI Comparison" />
+      )}
 
-      {/* Portfolio Breakdown */}
+      {/* Portfolio Breakdown — cross-agent holdings grid */}
       <PortfolioBreakdown />
     </div>
   );
