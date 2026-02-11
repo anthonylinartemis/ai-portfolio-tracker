@@ -7,11 +7,10 @@ export async function syncPricesForTicker(ticker: string): Promise<number> {
   const db = getDb();
 
   // Find the last date we have for this ticker
-  const lastRow = db
+  const [lastRow] = await db
     .select({ maxDate: max(schema.dailyPrices.date) })
     .from(schema.dailyPrices)
-    .where(eq(schema.dailyPrices.ticker, ticker))
-    .get();
+    .where(eq(schema.dailyPrices.ticker, ticker));
 
   const lastDate = lastRow?.maxDate;
   const today = toISODate(new Date());
@@ -38,7 +37,7 @@ export async function syncPricesForTicker(ticker: string): Promise<number> {
   let inserted = 0;
   for (const row of rows) {
     try {
-      db.insert(schema.dailyPrices)
+      await db.insert(schema.dailyPrices)
         .values({
           ticker,
           date: row.date,
@@ -49,8 +48,7 @@ export async function syncPricesForTicker(ticker: string): Promise<number> {
           adjClose: row.adjClose,
           volume: row.volume,
         })
-        .onConflictDoNothing()
-        .run();
+        .onConflictDoNothing();
       inserted++;
     } catch {
       // Skip duplicates
@@ -64,10 +62,9 @@ export async function syncAllPrices(): Promise<{ ticker: string; inserted: numbe
   const db = getDb();
 
   // Get all unique tickers from holdings + SPY
-  const holdingRows = db
+  const holdingRows = await db
     .select({ ticker: schema.holdings.ticker })
-    .from(schema.holdings)
-    .all();
+    .from(schema.holdings);
 
   const tickers = [...new Set([...holdingRows.map((h) => h.ticker), 'SPY'])];
 
@@ -85,19 +82,17 @@ export async function syncAllPrices(): Promise<{ ticker: string; inserted: numbe
 export async function computeSnapshots(agentId: string): Promise<void> {
   const db = getDb();
 
-  const agent = db
+  const [agent] = await db
     .select()
     .from(schema.agents)
-    .where(eq(schema.agents.id, agentId))
-    .get();
+    .where(eq(schema.agents.id, agentId));
 
   if (!agent) return;
 
-  const agentHoldings = db
+  const agentHoldings = await db
     .select()
     .from(schema.holdings)
-    .where(eq(schema.holdings.agentId, agentId))
-    .all();
+    .where(eq(schema.holdings.agentId, agentId));
 
   if (agentHoldings.length === 0) return;
 
@@ -107,15 +102,14 @@ export async function computeSnapshots(agentId: string): Promise<void> {
   // For each ticker, get their prices
   const pricesByTicker: Record<string, Record<string, number>> = {};
   for (const ticker of tickers) {
-    const prices = db
+    const prices = await db
       .select({ date: schema.dailyPrices.date, close: schema.dailyPrices.close })
       .from(schema.dailyPrices)
       .where(
         and(
           eq(schema.dailyPrices.ticker, ticker),
         )
-      )
-      .all();
+      );
 
     pricesByTicker[ticker] = {};
     for (const p of prices) {
@@ -149,10 +143,9 @@ export async function computeSnapshots(agentId: string): Promise<void> {
       initialShares[h.ticker] = dollarAmount / inceptionPrice;
 
       // Update shares in DB
-      db.update(schema.holdings)
+      await db.update(schema.holdings)
         .set({ shares: initialShares[h.ticker] })
-        .where(eq(schema.holdings.id, h.id))
-        .run();
+        .where(eq(schema.holdings.id, h.id));
     }
   }
 
@@ -171,15 +164,14 @@ export async function computeSnapshots(agentId: string): Promise<void> {
 
     const dailyReturn = prevValue != null ? (totalValue - prevValue) / prevValue : null;
 
-    db.insert(schema.portfolioSnapshots)
+    await db.insert(schema.portfolioSnapshots)
       .values({
         agentId,
         date,
         totalValue,
         dailyReturn,
       })
-      .onConflictDoNothing()
-      .run();
+      .onConflictDoNothing();
 
     prevValue = totalValue;
   }
@@ -192,7 +184,7 @@ export async function syncAndCompute(): Promise<void> {
   await syncAllPrices();
 
   // Recompute snapshots for all agents
-  const allAgents = db.select().from(schema.agents).all();
+  const allAgents = await db.select().from(schema.agents);
   for (const agent of allAgents) {
     await computeSnapshots(agent.id);
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { eq, and, max } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db';
 
 export async function GET(
@@ -9,37 +9,34 @@ export async function GET(
   const { agentId } = await params;
   const db = getDb();
 
-  const agent = db
+  const [agent] = await db
     .select()
     .from(schema.agents)
-    .where(eq(schema.agents.id, agentId))
-    .get();
+    .where(eq(schema.agents.id, agentId));
 
   if (!agent) {
     return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
   }
 
-  const agentHoldings = db
+  const agentHoldings = await db
     .select()
     .from(schema.holdings)
-    .where(eq(schema.holdings.agentId, agentId))
-    .all();
+    .where(eq(schema.holdings.agentId, agentId));
 
   // For each holding, get inception price and latest price
-  const holdingsWithPrices = agentHoldings.map((h) => {
-    // Get inception price
-    const inceptionRow = db
+  const holdingsWithPrices = await Promise.all(agentHoldings.map(async (h) => {
+    // Get all prices for this ticker
+    const priceRows = await db
       .select()
       .from(schema.dailyPrices)
       .where(
         and(
           eq(schema.dailyPrices.ticker, h.ticker),
         )
-      )
-      .all();
+      );
 
-    const inceptionPrice = inceptionRow.length > 0 ? inceptionRow[0].close : null;
-    const latestPrice = inceptionRow.length > 0 ? inceptionRow[inceptionRow.length - 1].close : null;
+    const inceptionPrice = priceRows.length > 0 ? priceRows[0].close : null;
+    const latestPrice = priceRows.length > 0 ? priceRows[priceRows.length - 1].close : null;
 
     const dollarAmount = (h.allocationPct / 100) * agent.initialCapital;
     const shares = inceptionPrice ? dollarAmount / inceptionPrice : 0;
@@ -56,7 +53,7 @@ export async function GET(
       currentValue,
       returnPct,
     };
-  });
+  }));
 
   return NextResponse.json(holdingsWithPrices);
 }

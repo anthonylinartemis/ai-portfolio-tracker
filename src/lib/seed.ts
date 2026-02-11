@@ -79,17 +79,17 @@ const DEFAULT_AGENTS = [
   },
 ];
 
-export function seedDatabase() {
+export async function seedDatabase() {
   const db = getDb();
 
   // Check if agents already exist
-  const existing = db.select().from(schema.agents).all();
+  const existing = await db.select().from(schema.agents);
   if (existing.length > 0) return;
 
   const now = new Date().toISOString();
 
   for (const agent of DEFAULT_AGENTS) {
-    db.insert(schema.agents)
+    await db.insert(schema.agents)
       .values({
         id: agent.id,
         name: agent.name,
@@ -97,17 +97,15 @@ export function seedDatabase() {
         inceptionDate: agent.inceptionDate,
         initialCapital: agent.initialCapital,
         createdAt: now,
-      })
-      .run();
+      });
 
     for (const holding of agent.holdings) {
-      db.insert(schema.holdings)
+      await db.insert(schema.holdings)
         .values({
           agentId: agent.id,
           ticker: holding.ticker,
           allocationPct: holding.allocationPct,
-        })
-        .run();
+        });
     }
   }
 }

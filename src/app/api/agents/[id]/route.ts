@@ -9,27 +9,24 @@ export async function GET(
   const { id } = await params;
   const db = getDb();
 
-  const agent = db
+  const [agent] = await db
     .select()
     .from(schema.agents)
-    .where(eq(schema.agents.id, id))
-    .get();
+    .where(eq(schema.agents.id, id));
 
   if (!agent) {
     return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
   }
 
-  const agentHoldings = db
+  const agentHoldings = await db
     .select()
     .from(schema.holdings)
-    .where(eq(schema.holdings.agentId, id))
-    .all();
+    .where(eq(schema.holdings.agentId, id));
 
-  const snapshots = db
+  const snapshots = await db
     .select()
     .from(schema.portfolioSnapshots)
-    .where(eq(schema.portfolioSnapshots.agentId, id))
-    .all();
+    .where(eq(schema.portfolioSnapshots.agentId, id));
 
   const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
   const currentValue = latestSnapshot?.totalValue ?? agent.initialCapital;

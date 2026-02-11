@@ -1,6 +1,6 @@
-import { sqliteTable, text, real, integer, primaryKey } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, real, integer, serial, primaryKey } from 'drizzle-orm/pg-core';
 
-export const agents = sqliteTable('agents', {
+export const agents = pgTable('agents', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   color: text('color').notNull(),
@@ -9,15 +9,15 @@ export const agents = sqliteTable('agents', {
   createdAt: text('created_at').notNull(),
 });
 
-export const holdings = sqliteTable('holdings', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const holdings = pgTable('holdings', {
+  id: serial('id').primaryKey(),
   agentId: text('agent_id').notNull().references(() => agents.id),
   ticker: text('ticker').notNull(),
   allocationPct: real('allocation_pct').notNull(),
   shares: real('shares'),
 });
 
-export const dailyPrices = sqliteTable('daily_prices', {
+export const dailyPrices = pgTable('daily_prices', {
   ticker: text('ticker').notNull(),
   date: text('date').notNull(),
   open: real('open'),
@@ -30,7 +30,7 @@ export const dailyPrices = sqliteTable('daily_prices', {
   pk: primaryKey({ columns: [table.ticker, table.date] }),
 }));
 
-export const portfolioSnapshots = sqliteTable('portfolio_snapshots', {
+export const portfolioSnapshots = pgTable('portfolio_snapshots', {
   agentId: text('agent_id').notNull().references(() => agents.id),
   date: text('date').notNull(),
   totalValue: real('total_value').notNull(),

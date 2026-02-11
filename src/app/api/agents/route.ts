@@ -4,18 +4,17 @@ import { getDb, schema } from '@/lib/db';
 import { seedDatabase } from '@/lib/seed';
 
 export async function GET() {
-  seedDatabase();
+  await seedDatabase();
   const db = getDb();
 
-  const agents = db.select().from(schema.agents).all();
+  const agents = await db.select().from(schema.agents);
 
   // Get latest snapshot for each agent
-  const agentsWithPerformance = agents.map((agent) => {
-    const snapshots = db
+  const agentsWithPerformance = await Promise.all(agents.map(async (agent) => {
+    const snapshots = await db
       .select()
       .from(schema.portfolioSnapshots)
-      .where(eq(schema.portfolioSnapshots.agentId, agent.id))
-      .all();
+      .where(eq(schema.portfolioSnapshots.agentId, agent.id));
 
     const latestSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
     const currentValue = latestSnapshot?.totalValue ?? agent.initialCapital;
@@ -26,7 +25,7 @@ export async function GET() {
       currentValue,
       totalReturn,
     };
-  });
+  }));
 
   // Sort by total return (desc) and add rank
   agentsWithPerformance.sort((a, b) => b.totalReturn - a.totalReturn);
@@ -52,7 +51,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    db.insert(schema.agents)
+    await db.insert(schema.agents)
       .values({
         id,
         name,
@@ -60,17 +59,15 @@ export async function POST(request: NextRequest) {
         inceptionDate,
         initialCapital: initialCapital || 100000,
         createdAt: new Date().toISOString(),
-      })
-      .run();
+      });
 
     for (const holding of holdings) {
-      db.insert(schema.holdings)
+      await db.insert(schema.holdings)
         .values({
           agentId: id,
           ticker: holding.ticker.toUpperCase(),
           allocationPct: holding.allocationPct,
-        })
-        .run();
+        });
     }
 
     return NextResponse.json({ success: true, id });

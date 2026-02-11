@@ -14,11 +14,10 @@ export async function GET(
 
   const db = getDb();
 
-  const agent = db
+  const [agent] = await db
     .select()
     .from(schema.agents)
-    .where(eq(schema.agents.id, agentId))
-    .get();
+    .where(eq(schema.agents.id, agentId));
 
   if (!agent) {
     return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
@@ -27,7 +26,7 @@ export async function GET(
   const startDate = getTimeframeStartDate(timeframe, agent.inceptionDate);
 
   // Get agent snapshots
-  const snapshots = db
+  const snapshots = await db
     .select()
     .from(schema.portfolioSnapshots)
     .where(
@@ -35,11 +34,10 @@ export async function GET(
         eq(schema.portfolioSnapshots.agentId, agentId),
         gte(schema.portfolioSnapshots.date, startDate)
       )
-    )
-    .all();
+    );
 
   // Get SPY snapshots for benchmark (compute SPY as a virtual portfolio)
-  const spyPrices = db
+  const spyPrices = await db
     .select()
     .from(schema.dailyPrices)
     .where(
@@ -47,8 +45,7 @@ export async function GET(
         eq(schema.dailyPrices.ticker, 'SPY'),
         gte(schema.dailyPrices.date, startDate)
       )
-    )
-    .all();
+    );
 
   // Convert SPY prices to snapshot-like format
   const spyInitialPrice = spyPrices.length > 0 ? spyPrices[0].close : 1;
