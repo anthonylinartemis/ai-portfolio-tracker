@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { AgentCard } from '@/components/dashboard/AgentCard';
 import { PerformanceChart } from '@/components/charts/PerformanceChart';
 import { PerformanceTable } from '@/components/dashboard/PerformanceTable';
-import { PortfolioBreakdown } from '@/components/dashboard/PortfolioBreakdown';
 import { Spinner } from '@/components/ui/Spinner';
 import { RefreshCw } from 'lucide-react';
 import type { AgentWithPerformance, Timeframe } from '@/types';
@@ -133,9 +132,6 @@ export default function DashboardPage() {
 
       {/* KPI Comparison Table */}
       <PerformanceTable />
-
-      {/* Portfolio Breakdown */}
-      <PortfolioBreakdown />
     </div>
   );
 }
