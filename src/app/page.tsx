@@ -64,8 +64,29 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Auto-sync on mount + 15-min polling
   useEffect(() => {
-    fetchAgents();
+    let cancelled = false;
+
+    async function syncAndRefresh() {
+      try {
+        await fetch('/api/prices/sync', { method: 'POST' });
+        if (cancelled) return;
+        await fetchAgents();
+      } catch (error) {
+        console.error('Auto-sync failed:', error);
+        // Still fetch agents even if sync fails — show stale data
+        if (!cancelled) await fetchAgents();
+      }
+    }
+
+    syncAndRefresh();
+
+    const interval = setInterval(syncAndRefresh, 15 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [fetchAgents]);
 
   useEffect(() => {

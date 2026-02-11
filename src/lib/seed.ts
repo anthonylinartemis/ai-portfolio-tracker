@@ -1,11 +1,12 @@
 import { getDb, schema } from '@/lib/db';
+import { eq } from 'drizzle-orm';
 
 const DEFAULT_AGENTS = [
   {
     id: 'gemini',
     name: 'Gemini',
     color: '#4285F4',
-    inceptionDate: '2026-02-11',
+    inceptionDate: '2026-02-10',
     initialCapital: 100000,
     holdings: [
       { ticker: 'NVDA', allocationPct: 15 },
@@ -24,7 +25,7 @@ const DEFAULT_AGENTS = [
     id: 'grok',
     name: 'Grok',
     color: '#1DA1F2',
-    inceptionDate: '2026-02-11',
+    inceptionDate: '2026-02-10',
     initialCapital: 100000,
     holdings: [
       { ticker: 'NVDA', allocationPct: 15 },
@@ -43,7 +44,7 @@ const DEFAULT_AGENTS = [
     id: 'claude',
     name: 'Claude',
     color: '#8B5CF6',
-    inceptionDate: '2026-02-11',
+    inceptionDate: '2026-02-10',
     initialCapital: 100000,
     holdings: [
       { ticker: 'GOOGL', allocationPct: 15 },
@@ -62,7 +63,7 @@ const DEFAULT_AGENTS = [
     id: 'gpt',
     name: 'GPT',
     color: '#10A37F',
-    inceptionDate: '2026-02-11',
+    inceptionDate: '2026-02-10',
     initialCapital: 100000,
     holdings: [
       { ticker: 'NVDA', allocationPct: 12 },
@@ -84,7 +85,17 @@ export async function seedDatabase() {
 
   // Check if agents already exist
   const existing = await db.select().from(schema.agents);
-  if (existing.length > 0) return;
+  if (existing.length > 0) {
+    // Fix inception dates for agents created on launch day
+    for (const agent of existing) {
+      if (agent.inceptionDate === '2026-02-11') {
+        await db.update(schema.agents)
+          .set({ inceptionDate: '2026-02-10' })
+          .where(eq(schema.agents.id, agent.id));
+      }
+    }
+    return;
+  }
 
   const now = new Date().toISOString();
 

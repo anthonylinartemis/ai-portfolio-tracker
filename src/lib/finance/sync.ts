@@ -29,7 +29,12 @@ export async function syncPricesForTicker(ticker: string): Promise<number> {
 
   if (startDate > today) return 0;
 
-  const rows = await fetchHistoricalPrices(ticker, startDate, today);
+  // Use tomorrow as period2 since Yahoo's API treats it as exclusive
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const endDate = toISODate(tomorrow);
+
+  const rows = await fetchHistoricalPrices(ticker, startDate, endDate);
 
   if (rows.length === 0) return 0;
 
